@@ -1,0 +1,225 @@
+\chapter{总体设计约束}
+
+描述可能限制开发人员选择的事项。
+
+\section{标准符合性}
+本系统采用采用了以下的标准和规范：
+\subsection{客户端应用开发使用的标准}
+客户端开发遵循的标准为Google's guide on Gradle for Android 和 Gradle's documentation
+具体体现在以下方面
+\subsubsection{构建系统}
+你的默认编译环境应该是Gradle.
+Ant 有很多限制，也很冗余。使用Gradle，完成以下工作很方便：
+\begin{enumerate} 
+	\item 构建APP不同版本的变种
+	\item 制作简单类似脚本的任务
+	\item 管理和下载依赖
+	\item 自定义秘钥
+	\item 更多
+\end{enumerate}
+
+同时，Android Gradle插件作为新标准的构建系统正在被Google积极的开发。
+\subsubsection{工程结构}
+有两种流行的结构：老的Ant \& Eclipse ADT 工程结构，和新的Gradle \& Android Studio 工程结构，应该选择新的工程结构，如果工程中还在使用老的结构，应该放弃，将工程移植到新的结构。
+
+老的结构:
+\begin{lstlisting}[language=C]
+old-structure  
+├─ assets  
+├─ libs  
+├─ res  
+├─ src  
+│  └─ com/futurice/project  
+├─ AndroidManifest.xml  
+├─ build.gradle  
+├─ project.properties  
+└─ proguard-rules.pro  
+\end{lstlisting}
+新的结构
+\begin{lstlisting}[language=C]
+new-structure  
+├─ library-foobar  
+├─ app  
+│  ├─ libs  
+│  ├─ src  
+│  │  ├─ androidTest  
+│  │  │  └─ java  
+│  │  │     └─ com/futurice/project  
+│  │  └─ main  
+│  │     ├─ java  
+│  │     │  └─ com/futurice/project  
+│  │     ├─ res  
+│  │     └─ AndroidManifest.xml  
+│  ├─ build.gradle  
+│  └─ proguard-rules.pro  
+├─ build.gradle  
+└─ settings.gradle  
+\end{lstlisting}
+
+主要的区别在于，新的结构明确的分开了'source sets' (main,androidTest)，Gradle的一个理念。
+这样做到，例如，添加源组‘paid’和‘free’在src中，这将成为应用程序的付费和免费的两种模式的源代码。
+
+项目引用第三方项目库时（例如，library-foobar），拥有一个顶级包名app从第三方库项目区分本应用程序。然后settings.gradle不断引用这些库项目，其中app/build.gradle可以引用。
+
+
+\subsubsection{密码}
+在做版本release时你app的build.gradle你需要定义signingConfigs.此时应该避免以下内容：
+\begin{lstlisting}[language=C]
+\\不要做这个 . 这会出现在版本控制中。
+signingConfigs {  
+release {  
+storeFile file("myapp.keystore")  
+storePassword "password123"  
+keyAlias "thekey"  
+keyPassword "password789"  
+}  
+}  
+\end{lstlisting}
+
+而是，建立一个不加入版本控制系统的gradle.properties文件。
+\begin{lstlisting}[language=C]
+KEYSTORE_PASSWORD=password123  
+KEY_PASSWORD=password789  
+\end{lstlisting}
+
+那个文件是gradle自动引入的，可以在buld.gradle文件中使用，例如：
+\begin{lstlisting}[language=java]
+signingConfigs {  
+release {  
+try {  
+storeFile file("myapp.keystore")  
+storePassword KEYSTORE_PASSWORD  
+keyAlias "thekey"  
+keyPassword KEY_PASSWORD  
+}  
+catch (ex) {  
+throw new InvalidUserDataException("You should define KEYSTORE_PASSWORD and KEY_PASSWORD in gradle.properties.")  
+}  
+}  
+}  
+\end{lstlisting}
+
+使用 Maven 依赖方案代替使用导入jar包方案 如果在项目中明确使用jar文件，那么它们可能成为永久的版本，如2.1.1.下载jar包更新他们是很繁琐的，这个问题Maven很好的解决了，这在Android Gradle构建中也是推荐的方法。
+应该指定版本的一个范围，如2.1.+,然后Maven会自动升级到制定的最新版本，例如：
+\begin{lstlisting}[language=java]
+dependencies {  
+compile 'com.netflix.rxjava:rxjava-core:0.19.+'  
+compile 'com.netflix.rxjava:rxjava-android:0.19.+'  
+compile 'com.fasterxml.jackson.core:jackson-databind:2.4.+'  
+compile 'com.fasterxml.jackson.core:jackson-core:2.4.+'  
+compile 'com.fasterxml.jackson.core:jackson-annotations:2.4.+'  
+compile 'com.squareup.okhttp:okhttp:2.0.+'  
+compile 'com.squareup.okhttp:okhttp-urlconnection:2.0.+'  
+}  
+\end{lstlisting}
+\subsubsection{IDEs and text editors}
+IDE集成开发环境和文本编辑器
+无论使用什么编辑器，一定要构建一个良好的工程结构 编辑器每个人都有自己的选择，让你的编辑器根据工程结构和构建系统运作，那是你自己的责任。
+
+当下首推Android Studio,因为他是由谷歌开发，最接近Gradle，默认使用最新的工程结构，已经到beta阶段（目前已经有release 1.0了），它就是为Android开发定制的。
+
+你也可以使用Eclipse ADT ，但是你需要对它进行配置，因为它使用了旧的工程结构和Ant作为构建系统。
+
+你甚至可以使用纯文版编辑器如Vim，Sublime Text，或者Emacs。如果那样的话，你需要使用Gardle和adb命令行。如果使用Eclipse集成Gradle不适合你，你只是使用命令行构建工程，或迁移到Android Studio中来吧。
+
+无论你使用何种开发工具，只要确保Gradle和新的项目结构保持官方的方式构建应用程序，避免你的编辑器配置文件加入到版本控制。例如，避免加入Antbuild.xml文件。
+特别如果你改变Ant的配置，不要忘记保持build.gradle是最新和起作用的。同时，善待其他开发者，不要强制改变他们的开发工具和偏好。
+
+
+
+\subsection{服务器端数据库的标准}
+为了优化数据库的设计，提高数据库设计的合理性和数据访问高效性，同时便于阅读和理解数据库的结构，以提高数据共享的质量和效率，促进数据库编码的标准化，本云音乐系统采用如下的数据库设计规范。
+
+\subsubsection{规范约定}
+遵守数据的设计规范3NF 
+
+规定:
+\begin{enumerate}
+	\item 表内的每一个值都只能被表达一次。
+	\item 表内的每一行都应该被唯一的标识（有唯一键）。
+	\item 表内不应该存储依赖于其他键的非键信息。
+\end{enumerate} 
+
+字段规范:
+\begin{enumerate}
+	\item 一行记录必须表内唯一，表必须有主键。
+	\item 金额类型使用Money 
+	\item 时间使用 DateTime  
+	\item 枚举类型使用 Varchar(2)、Varchar(4)，且需要说明枚举类型的各个不同取值的含义，例如 00,01,0000,0001  
+	\item 在主外键的选择上应注意：为关联字段创建外键、所有的键都必须唯一、避免使用复合键、外键总是关联唯一的键字段
+\end{enumerate}
+使用约定:
+\begin{enumerate}
+	\item 数据访问层尽量使用存储过程访问数据库，除非需要繁重的逻辑运算等情况下才在 代码中通过DML来访问数据库。    
+	\item 尽量使一个存储过程完成单一功能，复杂存储过程可以由多个单一功能存储过程组 成，例如，一个存储过程要增加一个表的记录并删除另一个表的记录，这个存储过程可以有两个子存储过程组成。  
+	\item 在编写存储过程和.NET数据访问程序的时候，需要通过Query Analyzer分析，确保 对数据库的操作使用了有效的索引。避免有对全表的扫描操作。
+	\item 如果开发过程中需要建立索引，需要提交书面的更改请求，说明所需索引的定义(名 称、字段列表、顺序、索引类型)以及建立的理由。数据库管理员统一维护索引并将提交的请求更改。
+	\item 给表建立索引时，应注意：每当你为一个表添加一个索引，SELECT会更快了，可INSERT和DELETE却大大的变慢了，因为创建了维护索引需要许多额外的工作。显然，这里问题的关键是：你要对这张表进行什么样的操作。   
+	\item 数据库各表的初始数据(包含各代码表、配置表)需要提交给数据库管理员。 
+	\item 避免使用触发器。   
+	\item 涉及到数据库数据的更改(Insert/Delete/Update)必须使用事务进行控制，并且必须有 完整事务开始和提交/回滚机制。   
+	\item 尽量避免Union操作的使用，需要使用时，请向数据库管理员咨询使用Union操作的影响。 
+	\item 尽量不要使用TEXT数据类型。除非你使用TEXT处理一个很大的数据，否则不要 使用它。因为它不易于查询，速度慢，用的不好还会浪费大量的空间。一般的，VARCHAR可以更好的处理你的数据。
+	\item 小心死锁！！ 
+	\item 不要忽略同时修改同一记录的问题。有时候，两个用户会同时修改同一记录，这样， 后一个修改者修改了前一个修改者的操作，某些更新就会丢失。处理这种情况不是很难：创建一个timestamp字段，在写入前检查它，如果允许，就合并修改，如果存在冲突，提示用户。
+\end{enumerate} 
+
+查询规范:
+\begin{enumerate}
+	\item 在表查询中，一律不要使用* 作为查询的字段列表，需要哪些字段必须显式写明。
+	\item 在表查询中，必须有Where条件，除非此表为非增长表，比如字典表。
+	\item 在表查询中，一次最多返回的记录条数不要超过1000条或记录内容不要大于1MB的数据。
+	\item 在表查询中，作Order By排序时，优先使用主键列，索引列。因大量的排序操作会降低数据库的性能，应谨慎。
+	\item 避免嵌套连接，例如：A = B and B = C and C = D。   
+	\item 多表关联查询时，优先使用Where条件，再作表关联，并且需要保证被关联的字段 需要有索引。
+	\item 尽量少用嵌套查询，过多嵌套会严重的降低数据库性能，在使用时要注重其合理性
+\end{enumerate}
+增加和删除:
+\begin{enumerate}
+	\item 不要使用INSERT导入大批的数据。使用UTS或者BCP，这样你可以一举而兼得灵 活性和速度。
+	\item 删除记录时，必须有Where唯一条件  
+	\item 当有主从表时，要先删除从表记录，在删除主表记录
+\end{enumerate} 
+
+修改:
+\begin{enumerate}
+	\item 修改记录时，必须有Where唯一条件
+\end{enumerate}
+
+\section{硬件约束}
+
+\subsection{服务器端硬件约束}
+服务器要能够作为数据中心稳定的存放所有用户数据，以及云端音乐数据，因此至少要满足以下约束：
+\begin{enumerate}
+	\item 在一个磁盘阵列中要有12到24个1~4TB硬盘
+	\item 2个频率为2~2.5GHz的四核、六核或八核CPU
+	\item 64~512GB的内存
+	\item 有保障的千兆或万兆以太网（存储密度越大，需要的网络吞吐量越高）
+\end{enumerate}
+\subsection{客户端硬件约束}
+为了保证客户端程序能够正确、流畅运行，这里对其硬件系统做出如下约束：
+\begin{enumerate}
+	\item 运行安卓4.4或者更高安卓版本系统
+	\item 客户端应用运行时系统运行的空闲运行内存必须为1G以上
+	\item 客户端运行时手机系统的数据存储空间至少为500M
+	\item 客户端运行的手机具有音频播放设备
+	\item 有3G网络信号或者其他更加稳定的互联网接入方式
+\end{enumerate}
+\section{技术限制}
+\subsection{开发平台与工具}
+我们使用Windows10作为主要的系统开发平台，并且使用谷歌官方推荐的Android studio作为主要的开发工具，租用腾讯的提供的虚拟主机搭建服务器后台。
+
+\subsection{软件开发生命周期模型}
+我们采用瀑布模型作为软件生命周期模型，因为瀑布模型适用于需求比较固定的情形，并且实行起来较为简单。  
+
+\subsection{法律}
+我们提供的这些云音乐资源有可能会侵犯那些著作者的版权，并且为那些提供正版云音乐的的内容提供商的利益造成一定的损害。因此为了不侵犯相关知识产权，我们只提供著作权法规定的音乐著作权保护期外的音乐作品和经过用户上传的且用户确保具有版权的音乐作品。
+
+著作权法规定的音乐著作权的保护期指的是音乐作品的词曲作者、改编、翻译等创作者对其创作的音乐作品享有专有权的保护期限。保护期限截止于作者死亡后第50年的12月31日。合作作品截止于最后死亡的作者死亡后第50年的12月31日。过了保护期的音乐作品可以免费使用，但作者的署名权、保护作品的完整权、修改权等人身权永远受保护
+
+
+\subsection{技术}
+我们目前所学的知识比较浅薄，许多Android开发的知识并没有学习到或者掌握到，我们也缺少UI设计师，因此在软件开发的过程中可能会遇到各种各样的难题，因此许多问题我们会采用别人已经写好的发布到github上面的框架来实现我们想要实现的功能。  
+
+\subsection{经费}
+开发初期，我们的经费是比较少的，比如说租用虚拟主机的费用以及进行市场调研的开支，对于我们这样一群学生来说也是一笔比较大的负担。

@@ -1,0 +1,31 @@
+\chapter{维护设计}
+可能的内容包括数据库的日常备份、压缩、维护等。
+
+\subsection{备份}
+
+对以下数据库进行完全备份:
+\begin{itemize}
+	\item Songs
+	\item Artists
+	\item Albums
+	\item Users
+	\item Lists
+\end{itemize}
+
+对于数据库备份的操作,在6.6节中已经介绍,不再赘述.
+
+同时,对收到的以下请求和结果进行备份:
+\begin{itemize}
+	\item 收藏操作
+	\item 歌单创建操作
+	\item 用户信息更改操作
+\end{itemize}
+
+\subsection{维护}
+
+每天2:00进行以下项目的检验:
+\begin{itemize}
+	\item 云端网络的可达性
+	\item 流媒体连接的速度
+	\item 数据库内容的正确性(检验和)
+\end{itemize}
